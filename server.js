@@ -38,6 +38,8 @@ app.use(
       "http://localhost:5174",
       "http://localhost:5173",
       "https://essencia-client-pzya.vercel.app",
+      "https://essencia-client-pzya-tonyvito12-gmailcom.vercel.app",
+      "https://essencia-client-pzya-git-main-tonyvito12-gmailcom.vercel.app/",
     ],
     credentials: true,
   })
