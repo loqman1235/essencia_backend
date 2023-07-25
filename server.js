@@ -112,8 +112,8 @@ mongoose
         const session = await stripeInstance.checkout.sessions.create({
           line_items: lineItems,
           mode: "payment",
-          success_url: "http://localhost:5173/?success=true",
-          cancel_url: "http://localhost:5173/?success=false",
+          success_url: "https://essencia-client-pzya.vercel.app/?success=true",
+          cancel_url: "https://essencia-client-pzya.vercel.app/?success=false",
           shipping_address_collection: {
             allowed_countries: ["US", "DZ", "FR"],
           },
