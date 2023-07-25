@@ -69,13 +69,7 @@ export const removeBrand = async (req, res) => {
     }
 
     // Remove the associated image files
-    const imagePath = "public/" + brand.image;
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-      console.log("Image Deleted:", imagePath);
-    } else {
-      console.log("Image File Not Found:", imagePath);
-    }
+    fs.unlinkSync("public/" + brand.image);
 
     res.status(200).json({ message: "Marque supprimée avec succès" });
   } catch (error) {
