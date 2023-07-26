@@ -123,7 +123,7 @@ mongoose
     // Webhook
     app.post("/webhook", async (req, res) => {
       const header = req.headers["stripe-signature"];
-      const payload = req.rawBody;
+      const payload = req.body;
 
       try {
         const event = stripeInstance.webhooks.constructEvent(
