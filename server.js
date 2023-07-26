@@ -130,54 +130,58 @@ mongoose
     });
 
     // Webhook
-    app.post("/webhook", async (req, res) => {
-      const header = req.headers["stripe-signature"];
-      const payload = req.rawBody;
+    app.post(
+      "/webhook",
+      express.raw({ type: "application/json" }),
+      async (req, res) => {
+        const header = req.headers["stripe-signature"];
+        const payload = req.rawBody;
 
-      try {
-        const event = stripeInstance.webhooks.constructEvent(
-          payload,
-          header,
-          process.env.STRIPE_WEBHOOK_SECRET
-        );
-        if (event.type === "checkout.session.completed") {
-          const orderId = event.data.object.client_reference_id;
-          console.log("orderId:", orderId); // Add this line for debugging
-          console.log(
-            "client_reference_id:",
-            event.data.object.client_reference_id
-          ); // Add this line for debugging
-          const order = await Order.findOne({ _id: orderId });
-          if (order) {
-            order.paymentStatus = "Payé";
-            order.deliveryStatus = "En attente";
-            order.email = event.data.object.customer_details.email;
-            order.address.name = event.data.object.shipping_details.name;
-            order.address.street =
-              event.data.object.shipping_details.address.line1;
-            order.address.city =
-              event.data.object.shipping_details.address.city;
-            order.address.state =
-              event.data.object.shipping_details.address.state;
-            order.address.postalCode =
-              event.data.object.shipping_details.address.postal_code;
-            order.address.country =
-              event.data.object.shipping_details.address.country;
-            order.paymentMethod = event.data.object.payment_method_types[0];
-            order.orderID = event.data.object.id;
-            await order.save();
-            console.log("Payment status updated successfully.");
-          } else {
-            console.log("Order not found.");
+        try {
+          const event = stripeInstance.webhooks.constructEvent(
+            payload,
+            header,
+            process.env.STRIPE_WEBHOOK_SECRET
+          );
+          if (event.type === "checkout.session.completed") {
+            const orderId = event.data.object.client_reference_id;
+            console.log("orderId:", orderId); // Add this line for debugging
+            console.log(
+              "client_reference_id:",
+              event.data.object.client_reference_id
+            ); // Add this line for debugging
+            const order = await Order.findOne({ _id: orderId });
+            if (order) {
+              order.paymentStatus = "Payé";
+              order.deliveryStatus = "En attente";
+              order.email = event.data.object.customer_details.email;
+              order.address.name = event.data.object.shipping_details.name;
+              order.address.street =
+                event.data.object.shipping_details.address.line1;
+              order.address.city =
+                event.data.object.shipping_details.address.city;
+              order.address.state =
+                event.data.object.shipping_details.address.state;
+              order.address.postalCode =
+                event.data.object.shipping_details.address.postal_code;
+              order.address.country =
+                event.data.object.shipping_details.address.country;
+              order.paymentMethod = event.data.object.payment_method_types[0];
+              order.orderID = event.data.object.id;
+              await order.save();
+              console.log("Payment status updated successfully.");
+            } else {
+              console.log("Order not found.");
+            }
           }
+        } catch (err) {
+          console.error(err);
+          return res.status(500).send("Error");
         }
-      } catch (err) {
-        console.error(err);
-        return res.status(500).send("Error");
-      }
 
-      res.sendStatus(200);
-    });
+        res.sendStatus(200);
+      }
+    );
 
     app.listen(3001, () => console.log("Server is running at port 3001"));
   })
