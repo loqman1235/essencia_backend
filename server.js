@@ -21,17 +21,8 @@ const stripeInstance = stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
 
 // Middlewares
-app.use(
-  express.json({
-    // Because Stripe needs the raw body, we compute it but only when hitting the Stripe callback URL.
-    verify: function (req, res, buf) {
-      var url = req.originalUrl;
-      if (url.startsWith("/webhook")) {
-        req.rawBody = buf.toString();
-      }
-    },
-  })
-);
+app.use("/webhook", express.raw({ type: "*/*" }));
+app.use(express.json());
 app.use(
   cors({
     origin: [
