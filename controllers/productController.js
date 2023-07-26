@@ -129,7 +129,9 @@ export const removeProduct = async (req, res) => {
     // Remove the associated image files
     const photos = product.images;
     photos.forEach((photo) => {
-      fs.unlinkSync("public/" + photo);
+      if (fs.existsSync(`public/${photo}`)) {
+        fs.unlinkSync("public/" + photo);
+      }
     });
 
     res.status(200).json({ message: "Produit supprimée avec succès" });
