@@ -1,6 +1,5 @@
 import Brand from "../models/brandModel.js";
-import fs from "fs";
-import { validationResult } from "express-validator";
+import cloudinary from "../utils/cloudinary.js";
 
 export const getAllBrands = async (req, res) => {
   try {
@@ -47,9 +46,16 @@ export const createBrand = async (req, res) => {
       return res.status(401).json({ errors });
     }
 
+    const brandImageResult = await cloudinary.uploader.upload(req.file.path, {
+      folder: "essencia/brands",
+    });
+
     const newBrand = await Brand.create({
       name,
-      image: `uploads/${req.file.filename}`,
+      image: {
+        public_id: brandImageResult.public_id,
+        url: brandImageResult.secure_url,
+      },
     });
     res.status(201).json({ success: true, brand: newBrand });
   } catch (error) {
@@ -62,16 +68,17 @@ export const createBrand = async (req, res) => {
 export const removeBrand = async (req, res) => {
   try {
     const { id } = req.params;
-    const brand = await Brand.findByIdAndDelete(id);
+    const existingBrand = await Brand.findById(id);
 
-    if (!brand) {
+    if (!existingBrand) {
       return res.status(404).json({ message: "Aucune marque trouvée" });
     }
 
-    // Remove the associated image files
-    if (fs.existsSync(`public/${brand.image}`)) {
-      fs.unlinkSync("public/" + brand.image);
+    if (existingBrand.image.public_id) {
+      await cloudinary.uploader.destroy(existingBrand.image.public_id);
     }
+
+    await Brand.findByIdAndDelete(id);
 
     res.status(200).json({ message: "Marque supprimée avec succès" });
   } catch (error) {
@@ -93,7 +100,6 @@ export const updateBrand = async (req, res) => {
 
     const { id } = req.params;
     const { name } = req.body;
-    let updatedBrand = null;
 
     if (!name || name.trim() === "") {
       errors.name = "Le nom de la marque est requis.";
@@ -103,18 +109,26 @@ export const updateBrand = async (req, res) => {
       return res.status(401).json({ errors });
     }
 
+    // If a new brand image is provided remove the other from cloudinary
     if (req.file) {
-      // If a new image is provided, update the brand's image path
-      const image = `uploads/${req.file.filename}`;
-      updatedBrand = await Brand.findByIdAndUpdate(
-        id,
-        { name, image },
-        { new: true }
-      );
-    } else {
-      // If no new image is provided, update only the name
-      updatedBrand = await Brand.findByIdAndUpdate(id, { name }, { new: true });
+      const existingBrand = await Brand.findById(id);
+      if (existingBrand.image.public_id) {
+        await cloudinary.uploader.destroy(existingBrand.image.public_id);
+      }
     }
+
+    // Upload new brand image
+    const brandImageResult = await cloudinary.uploader.upload(req.file.path, {
+      folder: "essencia/brands",
+    });
+
+    const updatedBrand = await Brand.findByIdAndUpdate(id, {
+      name,
+      image: {
+        public_id: brandImageResult.public_id,
+        url: brandImageResult.secure_url,
+      },
+    });
 
     res.status(200).json({
       message: "Marque mise à jour avec succès",

@@ -13,8 +13,8 @@ const router = express.Router();
 
 router.get("/", getAllBrands);
 router.get("/:id", getBrandById);
-router.post("/", upload.single("image"), createBrand);
-router.put("/:id", verifyToken, upload.single("image"), updateBrand);
+router.post("/", upload.single("image"), verifyToken, createBrand);
+router.put("/:id", upload.single("image"), verifyToken, updateBrand);
 router.delete("/:id", verifyToken, removeBrand);
 
 export default router;

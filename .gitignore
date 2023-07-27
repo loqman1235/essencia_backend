@@ -1,0 +1,22 @@
+# Node.js related files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+
+
+# Logs
+logs/
+*.log
+
+# Other sensitive information
+config.js
+key.pem
+cert.pem
+
+# Editor-specific files
+.vscode/
+.idea/

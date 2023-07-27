@@ -1,7 +1,6 @@
 import Product from "../models/productModel.js";
 import Brand from "../models/brandModel.js";
-import { sanitizeString } from "../helpers/sanitizeInput.js";
-import fs from "fs";
+import cloudinary from "../utils/cloudinary.js";
 
 export const getAllProducts = async (req, res) => {
   try {
@@ -42,11 +41,6 @@ export const getProductById = async (req, res) => {
 export const createProduct = async (req, res) => {
   try {
     const { name, description, volume, price, brandId } = req.body;
-    // const sanitizedName = sanitizeString(name);
-    // const sanitizedDesc = sanitizeString(description);
-    // const sanitizedVol = sanitizeString(volume);
-    // const sanitizedPrice = sanitizeString(price);
-
     const errors = {};
 
     if (!name || name.length === 0) {
@@ -83,8 +77,16 @@ export const createProduct = async (req, res) => {
       return res.status(401).json({ message: "Validation Errors", errors });
     }
 
-    const photos = req.files.map((img) =>
-      img.path.split("/").slice(1).join("/")
+    const photosResult = await Promise.all(
+      req.files.map(async (img) => {
+        const { secure_url, public_id } = await cloudinary.uploader.upload(
+          img.path,
+          {
+            folder: "essencia/products",
+          }
+        );
+        return { url: secure_url, public_id };
+      })
     );
 
     const newProduct = await Product.create({
@@ -92,7 +94,7 @@ export const createProduct = async (req, res) => {
       description,
       volume,
       price,
-      images: photos,
+      images: photosResult,
       brand: brand._id,
     });
 
@@ -120,20 +122,23 @@ export const createProduct = async (req, res) => {
 export const removeProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await Product.findByIdAndDelete(id);
-
-    if (!product) {
+    const existingProduct = await Product.findById(id);
+    if (!existingProduct) {
       return res.status(404).json({ message: "Aucune produit trouvée" });
     }
 
-    // Remove the associated image files
-    const photos = product.images;
-    photos.forEach((photo) => {
-      if (fs.existsSync(`public/${photo}`)) {
-        fs.unlinkSync("public/" + photo);
-      }
-    });
+    // Remove existing images from cloudinary
+    if (existingProduct.images && existingProduct.images.length > 0) {
+      const publicIds = existingProduct.images.map((img) => img.public_id);
+      await Promise.all(
+        publicIds.map(async (publidId) => {
+          await cloudinary.uploader.destroy(publidId);
+        })
+      );
+    }
 
+    // Remove Product
+    await Product.findByIdAndDelete(id);
     res.status(200).json({ message: "Produit supprimée avec succès" });
   } catch (error) {
     console.error(
@@ -181,13 +186,38 @@ export const updateProduct = async (req, res) => {
       errors.brand = "La marque spécifiée est introuvable.";
     }
 
+    const existingProduct = await Product.findById(id);
+
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Aucune produit trouvée" });
+    }
+
     if (req.files && req.files.length > 0) {
-      newPhotos = req.files.map((img) => `uploads/${img.filename}`);
+      if (existingProduct.images && existingProduct.images.length > 0) {
+        const publicIds = existingProduct.images.map((img) => img.public_id);
+        await Promise.all(
+          publicIds.map(async (publidId) => {
+            await cloudinary.uploader.destroy(publidId);
+          })
+        );
+      }
     }
 
     if (Object.keys(errors).length > 0) {
       return res.status(401).json({ message: "Validation Errors", errors });
     }
+
+    const photosResult = await Promise.all(
+      req.files.map(async (img) => {
+        const { secure_url, public_id } = await cloudinary.uploader.upload(
+          img.path,
+          {
+            folder: "essencia/products",
+          }
+        );
+        return { url: secure_url, public_id };
+      })
+    );
 
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
@@ -196,15 +226,11 @@ export const updateProduct = async (req, res) => {
         description: description,
         volume: volume,
         price: price,
-        images: newPhotos,
+        images: photosResult,
         brand: brand._id,
       },
       { new: true }
     );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ message: "Aucune produit trouvée" });
-    }
 
     res.status(200).json({
       message: "Produit mise à jour avec succès",
