@@ -5,7 +5,7 @@ import { body, validationResult } from "express-validator";
 
 export const register = async (req, res) => {
   try {
-    const { username, email, address, password, password_conf } = req.body;
+    const { username, email, password } = req.body;
     const validationRules = [
       body("username")
         .notEmpty()
@@ -17,7 +17,7 @@ export const register = async (req, res) => {
         .withMessage("L'adresse e-mail est requise.")
         .isEmail()
         .withMessage("Adresse e-mail invalide"),
-      body("address").notEmpty().escape().withMessage("L'adresse est requise."),
+
       body("password")
         .notEmpty()
         .escape()
@@ -57,7 +57,6 @@ export const register = async (req, res) => {
     const newUser = await User.create({
       username,
       email,
-      address,
       password: hashedPassword,
     });
 
