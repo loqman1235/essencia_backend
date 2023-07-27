@@ -157,8 +157,6 @@ export const updateProduct = async (req, res) => {
     const { id } = req.params;
     const { name, description, volume, price, brandId } = req.body;
 
-    let newPhotos;
-
     const errors = {};
 
     if (!name || name.length === 0) {
@@ -172,6 +170,7 @@ export const updateProduct = async (req, res) => {
     if (!volume || volume.length === 0) {
       errors.volume = "Le volume du produit est requis.";
     }
+
     if (!price || price.length === 0) {
       errors.price = "Le prix du produit est requis.";
     }
@@ -192,7 +191,27 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Aucune produit trouvée" });
     }
 
+    if (Object.keys(errors).length > 0) {
+      return res.status(401).json({ message: "Validation Errors", errors });
+    }
+
+    // Handle photo upload
+    let photosResult = [];
     if (req.files && req.files.length > 0) {
+      // New images provided, upload them to Cloudinary
+      photosResult = await Promise.all(
+        req.files.map(async (img) => {
+          const { secure_url, public_id } = await cloudinary.uploader.upload(
+            img.path,
+            {
+              folder: "essencia/products",
+            }
+          );
+          return { url: secure_url, public_id };
+        })
+      );
+
+      // Remove existing images from Cloudinary
       if (existingProduct.images && existingProduct.images.length > 0) {
         const publicIds = existingProduct.images.map((img) => img.public_id);
         await Promise.all(
@@ -201,36 +220,23 @@ export const updateProduct = async (req, res) => {
           })
         );
       }
+    } else {
+      // No new images provided, keep existing images
+      photosResult = existingProduct.images;
     }
 
-    if (Object.keys(errors).length > 0) {
-      return res.status(401).json({ message: "Validation Errors", errors });
-    }
+    const updatedFields = {
+      name: name,
+      description: description,
+      volume: volume,
+      price: price,
+      images: photosResult,
+      brand: brand._id,
+    };
 
-    const photosResult = await Promise.all(
-      req.files.map(async (img) => {
-        const { secure_url, public_id } = await cloudinary.uploader.upload(
-          img.path,
-          {
-            folder: "essencia/products",
-          }
-        );
-        return { url: secure_url, public_id };
-      })
-    );
-
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      {
-        name: name,
-        description: description,
-        volume: volume,
-        price: price,
-        images: photosResult,
-        brand: brand._id,
-      },
-      { new: true }
-    );
+    const updatedProduct = await Product.findByIdAndUpdate(id, updatedFields, {
+      new: true,
+    });
 
     res.status(200).json({
       message: "Produit mise à jour avec succès",
