@@ -81,3 +81,20 @@ export const updateDeliveryStatus = async (req, res) => {
     res.status(500).json("Something went wrong");
   }
 };
+
+export const removeOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existingOrder = await Order.findById(id);
+    if (!existingOrder) {
+      return res.status(404).json("Order not found");
+    }
+
+    await Order.findByIdAndDelete(id);
+
+    res.status(200).json("Commande supprimée avec succès.");
+  } catch (error) {
+    console.error(error);
+    res.status(500).json("Something went wrong");
+  }
+};
