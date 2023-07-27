@@ -93,7 +93,7 @@ mongoose
                 currency: "usd",
                 product_data: {
                   name: productData.name,
-                  images: [productData.images[0]],
+                  images: [productData.images[0].url],
                 },
                 unit_amount: productData.price * 100,
               },
