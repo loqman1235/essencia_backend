@@ -105,29 +105,38 @@ export const updateBrand = async (req, res) => {
       errors.name = "Le nom de la marque est requis.";
     }
 
-    if (Object.keys(errors).length > 0) {
-      return res.status(401).json({ errors });
-    }
-
-    // If a new brand image is provided remove the other from cloudinary
+    // If a new brand image is provided, upload it to Cloudinary
+    let brandImageResult = {};
     if (req.file) {
+      // Remove the existing brand image from Cloudinary
       const existingBrand = await Brand.findById(id);
       if (existingBrand.image.public_id) {
         await cloudinary.uploader.destroy(existingBrand.image.public_id);
       }
+
+      // Upload new brand image
+      brandImageResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: "essencia/brands",
+      });
     }
 
-    // Upload new brand image
-    const brandImageResult = await cloudinary.uploader.upload(req.file.path, {
-      folder: "essencia/brands",
-    });
+    if (Object.keys(errors).length > 0) {
+      return res.status(401).json({ errors });
+    }
 
-    const updatedBrand = await Brand.findByIdAndUpdate(id, {
+    const updatedFields = {
       name,
-      image: {
+    };
+
+    if (req.file) {
+      updatedFields.image = {
         public_id: brandImageResult.public_id,
         url: brandImageResult.secure_url,
-      },
+      };
+    }
+
+    const updatedBrand = await Brand.findByIdAndUpdate(id, updatedFields, {
+      new: true,
     });
 
     res.status(200).json({
